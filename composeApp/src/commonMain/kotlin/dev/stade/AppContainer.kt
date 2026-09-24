@@ -14,8 +14,6 @@ import dev.stade.crypto.PqCrypto
 import dev.stade.crypto.RatchetSessions
 import dev.stade.crypto.platformCrypto
 import dev.stade.crypto.platformPq
-import dev.stade.db.DatabaseSchema
-import dev.stade.db.DatabaseSchemaException
 import dev.stade.db.DriverFactory
 import dev.stade.db.StadeDb
 import dev.stade.group.GroupChatService
@@ -60,13 +58,25 @@ class AppContainer(
 
     init {
         val createdDriver = driverFactory.create(vault.plaintextDbPath())
-        try {
-            DatabaseSchema.requireCompatible(createdDriver)
-        } catch (error: DatabaseSchemaException) {
-            runCatching { createdDriver.close() }
-            throw error
-        }
         driver = createdDriver
+        val schemaOk = runCatching {
+            createdDriver.executeQuery(
+                identifier = null,
+                sql = "SELECT mlkemPublicKey FROM Contact LIMIT 0",
+                mapper = { _: SqlCursor -> QueryResult.Value(Unit) },
+                parameters = 0
+            )
+        }.isSuccess
+        if (!schemaOk) {
+            val indexes = listOf("idxMessageContact", "idxOutboxContact")
+            val tables = listOf(
+                "Outbox", "Message", "Contact", "PendingContact",
+                "LocalIdentity", "TransportSetting", "KeyValue"
+            )
+            indexes.forEach { runCatching { createdDriver.execute(null, "DROP INDEX IF EXISTS $it", 0) } }
+            tables.forEach { runCatching { createdDriver.execute(null, "DROP TABLE IF EXISTS $it", 0) } }
+            StadeDb.Schema.create(createdDriver)
+        }
         val database = StadeDb(createdDriver)
         runCatching {
             database.stadeDbQueries.putKv("schema.version", "2".encodeToByteArray())

@@ -18,7 +18,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import dev.stade.AppContainer
 import dev.stade.BootContext
-import dev.stade.db.DatabaseSchemaException
 import dev.stade.identity.LocalIdentity
 import dev.stade.ui.beginAcceptStadiumInvite
 import dev.stade.stadium.joinOfficialStadiumIfNeeded
@@ -161,7 +160,6 @@ fun StadeApp(boot: BootContext) {
             var container by remember { mutableStateOf<AppContainer?>(null) }
             var pendingNickname by remember { mutableStateOf<String?>(null) }
             var lockFailure by remember { mutableStateOf(false) }
-            var databaseSchemaFailed by remember { mutableStateOf(false) }
             val scope = rememberCoroutineScope()
 
             LaunchedEffect(initialized) {
@@ -240,32 +238,8 @@ fun StadeApp(boot: BootContext) {
                     )
                 }
                 else -> {
-                    val active = container ?: try {
-                        boot.buildContainer().also { container = it }
-                    } catch (error: DatabaseSchemaException) {
-                        databaseSchemaFailed = true
-                        null
-                    }
-                    if (databaseSchemaFailed || active == null) {
-                        AlertDialog(
-                            onDismissRequest = {
-                                databaseSchemaFailed = false
-                                boot.markLocked()
-                                unlocked = false
-                            },
-                            title = { Text(activeStrings.databaseSchemaFailedTitle) },
-                            text = { Text(activeStrings.databaseSchemaFailedBody) },
-                            confirmButton = {
-                                TextButton(onClick = {
-                                    databaseSchemaFailed = false
-                                    boot.markLocked()
-                                    unlocked = false
-                                }) {
-                                    Text(activeStrings.closeAction)
-                                }
-                            }
-                        )
-                    } else UnlockedApp(
+                    val active = container ?: boot.buildContainer().also { container = it }
+                    UnlockedApp(
                         container = active,
                         boot = boot,
                         presetNickname = pendingNickname,
