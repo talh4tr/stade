@@ -35,6 +35,7 @@ private class StoragePragmaCallback(
         super.onOpen(db)
         runCatching { db.query("PRAGMA journal_mode = DELETE").use { it.moveToFirst() } }
         runCatching { db.query("PRAGMA secure_delete = ON").use { it.moveToFirst() } }
+        runCatching { db.execSQL("PRAGMA temp_store = MEMORY") }
     }
 }
 

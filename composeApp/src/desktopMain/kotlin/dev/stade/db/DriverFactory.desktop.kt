@@ -45,6 +45,7 @@ internal fun convertPassphraseKeyToRawKey(dbFilePath: String, key: String) {
 private fun storageProperties(): Properties = Properties().apply {
     setProperty("journal_mode", "DELETE")
     setProperty("secure_delete", "true")
+    setProperty("temp_store", "MEMORY")
 }
 
 internal object DesktopSchemaUpgrade {
